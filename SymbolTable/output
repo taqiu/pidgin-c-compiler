@@ -1,0 +1,34 @@
+BEG SCOPE 0: {
+DEF SCOPE 0: int x
+BEG SCOPE 1: {
+DEF SCOPE 1: int y
+DEF SCOPE 1: int i
+DEF SCOPE 1: double s
+USE SCOPE 0: x (int)
+USE SCOPE 1: y (int)
+USE SCOPE 1: i (int)
+BEG SCOPE 2: {
+DEF SCOPE 2: double x
+USE SCOPE 1: i (int)
+USE SCOPE 2: x (double)
+USE SCOPE 2: x (double)
+USE SCOPE 1: s (double)
+END SCOPE 2: }
+BEG SCOPE 2: {
+DEF SCOPE 2: long x
+USE SCOPE 1: s (double)
+BEG SCOPE 3: {
+USE SCOPE 1: y (int)
+USE SCOPE 2: x (long)
+END SCOPE 3: }
+BEG SCOPE 3: {
+USE SCOPE 1: y (int)
+USE SCOPE 2: x (long)
+END SCOPE 3: }
+USE SCOPE 2: x (long)
+USE SCOPE 1: s (double)
+END SCOPE 2: }
+USE SCOPE 0: x (int)
+USE SCOPE 1: s (double)
+END SCOPE 1: }
+END SCOPE 0: }
