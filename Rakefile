@@ -1,4 +1,8 @@
-require 'rake/rdoctask'
+if (RUBY_VERSION =~ /1.9.*/)
+  require 'rdoc/task'
+else		
+  require 'rake/rdoctask'
+end
 require 'rake/clean'
 
 $PARSE_DIR = "PCParse"
