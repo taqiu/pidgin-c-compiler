@@ -16,13 +16,73 @@ rule
     program
   ;
 
+######################### my code begin #################################
+
+### declaration statements begin ###
   program:
-    function_defs  { result = :Program[val[0]] }
+    type_decls function_defs { result = :Program[val[0], val[1]] }
+  | function_defs { result = :Program[val[0]] }
+  | type_decls { result = :Program[val[0]] }
+  | { result = []}
   ;
+
+  type_decls:
+    type_decls type_decl { result = val[0] + [val[1]] }
+  | type_decl { result = [val[0]] }
+  ;
+
+  type_decl:
+    typename decl_list ';' { result = :TypeDecl[val[0], val[1]] }
+  ;
+
+  decl_list:
+    decl_list ',' decl { result = val[0] + [val[2]] }
+  | decl { result = [val[0]] }
+  ;
+
+  decl:
+     lval { result = val[0] }
+  | fn_decl { reuslt = val[0] }
+  ;
+
+  fn_decl:
+    IDENTIFIER '(' ')' { result = :FunctionDecl[val[0], :Formals[[]]] }
+  | IDENTIFIER '(' formal_params ')' { result = :FunctionDecl[val[0], :Formals[val[2]]]  }
+  ;
+
+  block:
+    '{' type_decls stmt_list '}' { result = [val[1], val[2]] }
+  | '{' stmt_list '}'  { result = val[1] }
+  | '{' type_decls '}' { result = val[1] }
+  | '{' '}' { result = [] }
+  ;
+
+### declaration statements end ###
+
+### compound_statements begin ###
+  stmt:
+    simple_stmt ';' 
+  | compound_stmt 
+  ;
+
+  compound_stmt:
+    FOR '(' simple_stmt ';' expr ';' simple_stmt ')' block { result = :FOR[val[2], val[4], val[6], :Block[val[8]]]}
+  | WHILE '(' expr ')' block { result = :WHILE[val[2], :Block[val[4]]]} 
+  | IF '(' expr ')' block optional_else { result = :IF[val[2],:Block[val[4]], val[5]] }
+  ;
+
+  optional_else:
+    ELSE block { result = :Else[:Block[val[1]]] }
+  | {result = []}	
+  ;
+
+### compound_statements end ###
+
+########################## my code end ##################################
 
   function_defs:
     function_defs function_def { result = val[0] + [val[1]] }
-  |   { result = [] }
+  | function_def  { result = [val[0]] }
   ;
 
   function_def:
@@ -63,17 +123,9 @@ rule
   | '[' ']'  { result = :EmptySubscript[] }
   ;
 
-  block:
-    '{' stmt_list '}'  { result = val[1] }
-  ;
-
   stmt_list:
     stmt_list stmt  { result = val[0] + [val[1]] }
-  |   { result = [] }
-  ;
-
-  stmt:
-    simple_stmt ';'
+  | stmt  { result = [val[0]] }
   ;
 
   simple_stmt:
