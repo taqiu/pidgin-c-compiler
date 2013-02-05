@@ -5,7 +5,7 @@
  Tanghong Qiu
 =end 
 
-class Scanner
+class SymbolTable 
 	def initialize()
 		@scop_count = 0
 	end
@@ -86,6 +86,6 @@ class Env
 	end
 end
 
-my_scanner = Scanner.new()
+my_scanner = SymbolTable.new()
 my_scanner.scan()
 
