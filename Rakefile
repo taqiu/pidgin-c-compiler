@@ -58,10 +58,10 @@ task :make do
 end
 
 Rake::RDocTask.new do |rd|
-  rd.main = "README"
+  rd.main = "README_support"
   rd.rdoc_dir = 'doc/rdoc'
   rd.title = 'Support code for P523'
-  rd.rdoc_files.include("README", inside_parse_dir(["extconf.rb", "lex.l", "pcparser.y", "tokens.h", "scanner.c"]), 
+  rd.rdoc_files.include("README_support", inside_parse_dir(["extconf.rb", "lex.l", "pcparser.y", "tokens.h", "scanner.c"]), 
                         "*.rb", "Rakefile")
   rd.options = ['--inline-source']
 end
