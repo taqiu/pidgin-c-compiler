@@ -1,3 +1,6 @@
+cwd = File.dirname(__FILE__)
+$:.unshift cwd, cwd + '/../lib'
+
 require 'rubywrite'
 
 class Transformer < RubyWrite::ReWriter

@@ -1,5 +1,6 @@
 /* We don't (yet) support pre-processor directives. */
 
+int m; 
 int main ()
 {
   x = 10;

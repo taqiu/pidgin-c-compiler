@@ -1,7 +1,13 @@
+#! /usr/bin/ruby
+
 cwd = File.dirname(__FILE__)
 $:.unshift cwd, cwd + '/RubyWrite/lib'
 
 require 'rubywrite'
+require 'PCParse/scanner'
+require 'PCParse/pcparser'
+require 'PCUnparse/pcunparser'
+require 'optparse'
 
 # This class includes RubyWrite as a module.  So, the class can use RubyWrite
 # features.  RubyWrite method become this class's methods.
@@ -62,4 +68,51 @@ example = :Function[:Name['tmp'],
                           ]
                          ]
                    ]
-ReverseLoopNest.run example
+# ReverseLoopNest.run example
+
+######################### my code begin #################################
+
+# parse the argments
+options = {}
+OptionParser.new do |opts|
+	opts.banner = "Usage: pcc.rb [options]"
+	options[:parse] = false
+
+	opts.on("-p", "--[no-]parse", "Display a parse tree") do |v|
+		options[:parse] = v
+	end
+end.parse!
+
+# p options
+# p ARGV
+# exit
+
+# scan the code
+scanner = Scanner.new
+scanned_words = []
+while true
+	t = scanner.next_token
+	scanned_words.push [t[0], t[1]]	
+	break if t[0] == false
+end
+
+#p scanned_words
+#exit
+
+# parse the code
+parser = PCParser.new
+syntax_tree = parser.parse_array scanned_words
+
+# print syntax tree if need
+if options[:parse] 
+	syntax_tree.prettyprint STDOUT
+	puts
+	exit
+end
+
+# unparser the syntax tree
+unparser = PCUnparser.new
+puts unparser.unparse syntax_tree
+
+########################## my code end ##################################
+

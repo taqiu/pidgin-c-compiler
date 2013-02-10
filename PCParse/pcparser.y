@@ -18,14 +18,12 @@ rule
 
 ######################### my code begin #################################
 
-### declaration statements begin ###
   program:
-    type_decls function_defs { result = :Program[val[0], val[1]] }
-  | function_defs { result = :Program[val[0]] }
-  | type_decls { result = :Program[val[0]] }
+    type_decls function_defs { result = :Program[val[0],val[1]] }
+  | function_defs { result = :Program[[], val[0]] }
+  | type_decls { result = :Program[val[0],[]] }
   | { result = []}
   ;
-
   type_decls:
     type_decls type_decl { result = val[0] + [val[1]] }
   | type_decl { result = [val[0]] }
@@ -43,6 +41,8 @@ rule
   decl:
      lval { result = val[0] }
   | fn_decl { reuslt = val[0] }
+  | pointer { result = val[0] }
+  | '*' fn_decl {result = :Pointer[val[1]] }
   ;
 
   fn_decl:
@@ -52,23 +52,20 @@ rule
 
   block:
     '{' type_decls stmt_list '}' { result = [val[1], val[2]] }
-  | '{' stmt_list '}'  { result = val[1] }
-  | '{' type_decls '}' { result = val[1] }
-  | '{' '}' { result = [] }
+  | '{' stmt_list '}'  { result = [[], val[1]] }
+  | '{' type_decls '}' { result = [val[1], []] }
+  | '{' '}' { result = [[], []] }
   ;
 
-### declaration statements end ###
-
-### compound_statements begin ###
   stmt:
-    simple_stmt ';' 
+    simple_stmt ';' { result = :SimpleStmt[val[0]] } 
   | compound_stmt 
   ;
 
   compound_stmt:
-    FOR '(' simple_stmt ';' expr ';' simple_stmt ')' block { result = :FOR[val[2], val[4], val[6], :Block[val[8]]]}
-  | WHILE '(' expr ')' block { result = :WHILE[val[2], :Block[val[4]]]} 
-  | IF '(' expr ')' block optional_else { result = :IF[val[2],:Block[val[4]], val[5]] }
+    FOR '(' simple_stmt ';' expr ';' simple_stmt ')' block { result = :For[val[2], val[4], val[6], :Block[val[8]]]}
+  | WHILE '(' expr ')' block { result = :While[val[2], :Block[val[4]]]} 
+  | IF '(' expr ')' block optional_else { result = :If[val[2],:Block[val[4]], val[5]] }
   ;
 
   optional_else:
@@ -76,18 +73,51 @@ rule
   | {result = []}	
   ;
 
-### compound_statements end ###
+  pointer:
+    '*' lval { result = :Pointer[val[1]] }
+  ;
+ 
+  expr:
+    IDENTIFIER
+  | pointer
+  | INT_NUM  { result = :ConstInt[val[0]] }
+  | REAL_NUM  { result = :ConstReal[val[0]] }
+  | STRING  { result = :ConstString[val[0]] }
+  | array_ref
+  | function_call
+  | expr '+' expr  { result = :BinaryOp[val[0], '+', val[2]] }
+  | expr '-' expr  { result = :BinaryOp[val[0], '-', val[2]] }
+  | expr '*' expr  { result = :BinaryOp[val[0], '*', val[2]] }
+  | expr '/' expr  { result = :BinaryOp[val[0], '/', val[2]] }
+  | expr BOOL_OP expr  { result = :BinaryOp[val[0], val[1], val[2]] }
+  | expr REL_OP expr  { result = :BinaryOp[val[0], val[1], val[2]] }
+  | '-' expr  = UMINUS  { result = :UnaryOp['-', val[1]] }
+  | '+' expr  = UPLUS  { result = :UnaryOp['+', val[1]] }
+  | PREFIX_OP expr = PREFIXOP  { result = :UnaryOp[val[0], val[1]] }
+  | '(' expr ')'  { result = :Parenthesis[val[1]] }
+  ;
+
+  function_def:
+    typename IDENTIFIER '(' formal_params ')' block  { result = :Function[val[0], val[1], :Formals[val[3]], :Block[val[5]]] }
+  | typename IDENTIFIER '(' ')' block  { result = :Function[val[0], val[1], :Formals[[]], :Block[val[4]]] }
+  | typename '*' IDENTIFIER '(' formal_params ')' block  { result = :Function[:TypePointer[val[0]], val[2], :Formals[val[4]], :Block[val[6]]] }
+  | typename '*' IDENTIFIER '(' ')' block  { result = :Function[:TypePointer[val[0]], val[2], :Formals[[]], :Block[val[5]]] } 
+  ;
+
+  formal_param:
+    typename  { result = :Formal[val[0], []] }
+  | typename IDENTIFIER  { result = :Formal[val[0], val[1]] }
+  | typename '&' IDENTIFIER  { result = :Formal[val[0], :RefArg[val[2]]] }
+  | typename array_formal  { result = :Formal[val[0], val[1]] }
+  | typename '*' array_formal  { result = :Formal[val[0], :Pointer[val[2]]] }
+  | typename '*' IDENTIFIER { result = :Formal[val[0],  :Pointer[val[2]]] }
+  ;
 
 ########################## my code end ##################################
 
   function_defs:
     function_defs function_def { result = val[0] + [val[1]] }
   | function_def  { result = [val[0]] }
-  ;
-
-  function_def:
-    typename IDENTIFIER '(' formal_params ')' block  { result = :Function[val[0], val[1], :Formals[val[3]], :Block[val[5]]] }
-  | typename IDENTIFIER '(' ')' block  { result = :Function[val[0], val[1], :Formals[[]], :Block[val[4]]] }
   ;
 
   typename:
@@ -102,12 +132,6 @@ rule
   | formal_param  { result = [val[0]] }
   ;
 
-  formal_param:
-    typename  { result = [val[0], ''] }
-  | typename IDENTIFIER  { result = [val[0], val[1]] }
-  | typename '&' IDENTIFIER  { result = [val[0], :RefArg[val[2]]] }
-  | typename array_formal  { result = [val[0], val[1]] }
-  ;
 
   array_formal:
     IDENTIFIER array_formal_subs  { result = :ArrayArg[val[0], val[1]] }
@@ -130,6 +154,7 @@ rule
 
   simple_stmt:
     lval '=' expr  { result = :Assignment[val[0], val[2]] }
+  | pointer '=' expr { result= :Assignment[val[0], val[2]] }
   | BREAK  { result = :BreakStmt[] }
   | CONTINUE  { result = :ContinueStmt[] }
   | RETURN  { result = :ReturnStmt[] }
@@ -142,24 +167,6 @@ rule
   | array_ref
   ;
 
-  expr:
-    IDENTIFIER
-  | INT_NUM  { result = :ConstInt[val[0]] }
-  | REAL_NUM  { result = :ConstReal[val[0]] }
-  | STRING  { result = :ConstString[val[0]] }
-  | array_ref
-  | function_call
-  | expr '+' expr  { result = :BinaryOp[val[0], '+', val[2]] }
-  | expr '-' expr  { result = :BinaryOp[val[0], '-', val[2]] }
-  | expr '*' expr  { result = :BinaryOp[val[0], '*', val[2]] }
-  | expr '/' expr  { result = :BinaryOp[val[0], '/', val[2]] }
-  | expr BOOL_OP expr  { result = :BinaryOp[val[0], val[1], val[2]] }
-  | expr REL_OP expr  { result = :BinaryOp[val[0], val[1], val[2]] }
-  | '-' expr  = UMINUS  { result = :UnaryOp['=', val[1]] }
-  | '+' expr  = UPLUS  { result = :UnaryOp0['+', val[1]] }
-  | PREFIX_OP expr = PREFIXOP  { result = :UnaryOp[val[0], val[1]] }
-  | '(' expr ')'  { result = val[1] }
-  ;
 
   array_ref:
     IDENTIFIER '[' array_index_list ']'  { result = :ArrayRef[val[0], val[2]] }

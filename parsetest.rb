@@ -1,3 +1,4 @@
+#! /usr/bin/ruby
 cwd = File.dirname(__FILE__)
 $:.unshift cwd, cwd + '/RubyWrite/lib'
 
@@ -47,8 +48,10 @@ t = parser.parse_array [[:INT, 'int'],
 # puts "#{t.prettyprint}"
 
 # The parser can also parse from a file (stdin, actually).
-tt = parser.parse_file
-tt.prettyprint STDOUT
+#tt = parser.parse_file
+t.prettyprint STDOUT
 
 # prettyprint doesn't print a newline at the end; so, call puts once more
 puts
+name = t.class.name
+puts name
