@@ -26,7 +26,7 @@ class TestParser
 			t2.close
 		end
 		puts "Done!"
-		# File.delete("unparsed_code.tmp")
+		File.delete("unparsed_code.tmp")
 	end
 end
 
