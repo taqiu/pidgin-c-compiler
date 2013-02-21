@@ -1,4 +1,8 @@
 #! /usr/bin/ruby
+=begin
+  Assigment 2
+  Tanghong Qiu
+=end
 
 class TestParser 
 	def run () 
