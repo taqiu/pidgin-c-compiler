@@ -5,8 +5,10 @@ require 'prettyprint'
 class ShadowBoxing
   attr_accessor :rules
 
-  def initialize &block
+  def initialize show_attributes = false, &block
     @rules = {}
+    @attributes = {}
+    @show_attributes = show_attributes
     instance_eval(&block)
   end
 
@@ -53,11 +55,19 @@ class ShadowBoxing
     @rules[node_type] = body_proc
   end
 
+  def attribute *node_types, &body_proc
+    node_types.each {|t| @attributes[t] = body_proc}
+  end
+
   def process x
     # If it is a node, assume we need to process it.
     if x.instance_of? RubyWrite::Node
       if rule = @rules[x.value]
-        rule.call *x.children
+        if @show_attributes && (attribute = @attributes[x.value])
+          :V[{:vs=>0, :is=>0}, ["\n", attribute.call(x), :H[{:hs=>0}, [rule.call(*x.children)]]]]
+        else
+          :V[{:vs=>0,:is=>0},[rule.call(*x.children)]]
+        end
       # ignore or boxers unless someone's already written a rule for them
       elsif [:H, :V, :HV].include? x.value
         x
@@ -70,7 +80,7 @@ class ShadowBoxing
     # otherwise assume we've got a string or something that converts
     # nicely to a string
     else
-      unless [String, Fixnum, Symbol].include? x.class
+      unless [RubyWrite::ConcreteNode, String, Fixnum, Symbol].include? x.class
         puts "ShadowBoxing: Not sure what to do with this: #{x.class} -- #{x}"
       end
       x.to_s

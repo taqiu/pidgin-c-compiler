@@ -8,11 +8,16 @@ module RubyWrite
     attr_accessor :children
     attr_accessor :attributes
 
-    def initialize (v, c=[])
+    def initialize (v, c=[], a = {})
       @value = v
       @children = []
-      @attributes = {}
       c.each {|x| @children << x}
+      # performing a deep copy may be a better idea?
+      @attributes = a.clone
+    end
+
+    def self.concrete str
+      ConcreteNode.new(str)
     end
 
     def numChildren
@@ -48,13 +53,31 @@ module RubyWrite
     end
 
     def ==(term) 
-      @value == term.value and @children == term.children
+      self.class == term.class and @value == term.value and @children == term.children
+    end
+
+    def xform *args
+      n = self
+      args.each { |c| n = (c.instance_of?(Class)) ? c.run(n) : c.main(n) }
+      n
     end
 
     # Node is a valid tree
     def valid_tree?
       true
     end
+  end
+
+  # Indicates a concrete class, since the base functionality we want for
+  # concrete classes treats them more like fixed strings then code, we'd like
+  # to subclass string.  The wrapper class allows us to distinguish a normal
+  # string from a concrete node, should we need to reconstitute it, into a
+  # normal node.
+  #
+  # Just to be clear, since the node hierarchy doesn't know anything about the
+  # concrete syntax of the language being analyzed, it doesn't know what the
+  # value of the node is, or how to recreate the parsed nodes.
+  class ConcreteNode < String
   end
 end
 
@@ -69,6 +92,12 @@ class Array
 
   def children
     self
+  end
+
+  def xform *args
+    n = self
+    args.each { |c| n = (c.instance_of?(Class)) ? c.run(n) : c.main(n) }
+    n
   end
 
   # Array is a valid tree
@@ -93,6 +122,12 @@ class String
 
   # default children= does nothing
   def children= (c)
+  end
+
+  def xform *args
+    n = self
+    args.each { |c| n = (c.instance_of?(Class)) ? c.run(n) : c.main(n) }
+    n
   end
 
   # String is a valid tree
