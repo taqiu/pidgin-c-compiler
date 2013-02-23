@@ -7,7 +7,7 @@
 #
 ###########################################
 
-$debug = true
+$debug = false 
 
 class PCCSA 
 	include RubyWrite

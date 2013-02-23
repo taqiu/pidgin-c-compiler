@@ -5,5 +5,5 @@ for i in {0..15}
 do
 	echo -- run example$i.c   
 	ruby  pcc.rb < test/csa/example$i.c | grep '.rb:'
-	ruby  pcc.rb  < test/csa/example$i.c # | grep error 
+	ruby  pcc.rb  < test/csa/example$i.c  | grep error 
 done
