@@ -7,6 +7,7 @@ require 'rubywrite'
 require 'PCParse/scanner'
 require 'PCParse/pcparser'
 require 'PCUnparse/pcunparser'
+require 'CSA/pccsa'
 require 'optparse'
 
 # This class includes RubyWrite as a module.  So, the class can use RubyWrite
@@ -68,8 +69,8 @@ example = :Function[:Name['tmp'],
                           ]
                          ]
                    ]
-# ReverseLoopNest.run example
-
+#ReverseLoopNest.run example
+#exit
 ######################### my code begin #################################
 
 # parse the argments
@@ -109,6 +110,9 @@ if options[:parse]
 	puts
 	exit
 end
+
+# context-sence analysis
+exit unless PCCSA.run syntax_tree
 
 # unparser the syntax tree
 unparser = PCUnparser.new

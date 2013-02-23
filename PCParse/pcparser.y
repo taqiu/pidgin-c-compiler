@@ -179,7 +179,7 @@ rule
 
   function_call:
     IDENTIFIER '(' actual_params ')'  { result = :FunctionCall[val[0], val[2]] }
-  | IDENTIFIER '(' ')'  { result = :FunctionCall[val[0], [[]]] }
+  | IDENTIFIER '(' ')'  { result = :FunctionCall[val[0], []] }
   ;
 
   actual_params:
