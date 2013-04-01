@@ -14,6 +14,10 @@
 #  Unfinished work:
 #  - assignment type casting 
 #  - function call type casting 
+#  - char and string is not supported yet because of the inherent problem in the scanner
+#    the compile can't output exetutable llvm assemblly with char or string
+#  - compound statements
+#  - camparsion statements
 #
 
 
@@ -151,7 +155,7 @@ class PCLLVM
 
 	define_rw_rewriter :trav_functions do
 		rewrite :Function[:rtype, :id, :Formals[:formals], :block] do
-			@temp_count = 0
+			@temp_count = 1 
 			@lenv = LEnv.new @lenv
 			type_name = lookup(:rtype)
                         if type_name == "int"
@@ -315,7 +319,6 @@ class PCLLVM
 				count = 0
 				var = ""
 				lookup(:subs).each { |x|
-					var = get_temp_var
 					idx, idx_type = trav_expr x
 					atype = to_array_type [type[0], type[1][count..-1]]
 					if count == 0
@@ -323,6 +326,7 @@ class PCLLVM
 					else
 						last_var = var
 					end
+					var = get_temp_var
 					@expr_stmts += [build :GEP[var, atype+"*",  last_var ,["i32 0","i32 "+idx]]]
 					count += 1
 				}
@@ -397,7 +401,6 @@ class PCLLVM
 				count = 0
 				var = ""
 				lookup(:subs).each { |x|
-					var = get_temp_var
 					idx, idx_type = trav_expr x
 					atype = to_array_type [type[0], type[1][count..-1]]
 					if count == 0
@@ -405,6 +408,7 @@ class PCLLVM
 					else
 						last_var = var
 					end
+					var = get_temp_var
 					@expr_stmts += [build :GEP[var, atype+"*",  last_var ,["i32 0","i32 "+idx]]]
 					count += 1
 				}
@@ -438,7 +442,7 @@ class PCLLVM
 				trav_expr val
 			end
 		end
-		rewrite :Parenthersis[:val] do |node|
+		rewrite :Parenthesis[:val] do |node|
 			trav_expr lookup(:val)
 		end
 		rewrite :BinaryOp[:val1, :op, :val2] do |node|
@@ -498,11 +502,11 @@ class PCLLVM
 			}
 			rtype, layer = @lenv.apply_env id
 			if rtype[0] == "void"
-				@expr_stmts += [build :VoidCall[id, params]]
+				@expr_stmts += [build :VoidCall["@"+id, params]]
 				[]
 			else
 				var = get_temp_var
-				@expr_stmts += [build :Call[var, rtype[0], id, params]]
+				@expr_stmts += [build :Call[var, rtype[0],"@"+id, params]]
 				[var, rtype]
 			end
 		end
@@ -537,7 +541,7 @@ class PCLLVM
 	end
 
 	def get_temp_var () 
-		var = "%" + @temp_count.to_s
+		var = "%temp" + @temp_count.to_s
 		@temp_count += 1
 		var
 	end

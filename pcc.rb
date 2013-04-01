@@ -141,8 +141,10 @@ if options[:llvm]
 	exit
 end
 
-llvm_unparser = LLVMUnparser.new
-puts llvm_unparser.unparse llvm_ast
+if llvm_ast != nil
+	llvm_unparser = LLVMUnparser.new
+	puts llvm_unparser.unparse llvm_ast
+end
 
 ########################## my code end ##################################
 

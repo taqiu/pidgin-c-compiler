@@ -1,0 +1,13 @@
+@i = common global i32 0
+@j = common global i32 0
+@k = common global i32 0
+@pr = common global i32* null
+@a = common global [7 x [3 x i32]] zeroinitializer
+@c = common global [3 x [4 x i32*]] zeroinitializer
+@d = common global double 0.000000e+00
+@pd = common global double* null
+@ppd = common global [4 x double*] zeroinitializer
+@ad = common global [3 x [3 x [6 x [6 x double]]]] zeroinitializer
+@str = common global i8* null
+@str1 = common global [40 x i8] zeroinitializer
+@s = common global i8 0

@@ -38,12 +38,21 @@ class LLVMUnparser
 				val
 			end
 			rule :Function do |rettype, name, args, body|
-				v({},
-				  v({:is => 3},
-				  h({}, "define ", rettype, " ", name,
-				  "(", h_star({}, ", ", *args.children), ") {"),
-				   h_star({}, "", v({}, *body.children))),
-				  "}")
+				if rettype == "void"
+					v({},
+					  v({:is => 3},
+					  h({}, "define ", rettype, " ", name,
+					  "(", h_star({}, ", ", *args.children), ") {"),
+					   h_star({}, "", v({}, *body.children)), "ret void"),
+					  "}")
+				else
+					v({},
+					  v({:is => 3},
+					  h({}, "define ", rettype, " ", name,
+					  "(", h_star({}, ", ", *args.children), ") {"),
+					   h_star({}, "", v({}, *body.children))),
+					  "}")
+				end
 			end
 			rule :Formal do |type, id|
 				h({}, type, " ", id)
@@ -61,7 +70,7 @@ class LLVMUnparser
 				h({}, "ret ", type, " ", val)
 			end
 			rule :GEP do |id, type, addr, subs|
-				h({}, id, " = getelementptr ", type, " ", addr, ", ", subs.join(", "))
+				h({}, id, " = getelementptr inbounds ", type, " ", addr, ", ", subs.join(", "))
 			end
 			rule :BinaryOp do |id, op, type, var1, var2|
 				h({}, id, " = ", op, " ", type, " ", var1, ", ", var2)
