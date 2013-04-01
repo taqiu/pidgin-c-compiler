@@ -8,6 +8,8 @@ require 'PCParse/scanner'
 require 'PCParse/pcparser'
 require 'PCUnparse/pcunparser'
 require 'CSA/pccsa'
+require 'LLVM/pcllvm'
+require 'LLVM/llvmunparser'
 require 'optparse'
 
 # This class includes RubyWrite as a module.  So, the class can use RubyWrite
@@ -78,9 +80,17 @@ options = {}
 OptionParser.new do |opts|
 	opts.banner = "Usage: pcc.rb [options]"
 	options[:parse] = false
+	options[:ccode] = false
+	options[:llvm]  = false
 
 	opts.on("-p", "--[no-]parse", "Display a parse tree") do |v|
 		options[:parse] = v
+	end
+	opts.on("-c", "--[no-]ccode", "Output unparsed c-code") do |v|
+		options[:ccode] = v
+	end
+	opts.on("-l", "--[no-]llvm", "Display the AST of llvm") do |v|
+		options[:llvm] = v
 	end
 end.parse!
 
@@ -115,8 +125,24 @@ end
 exit unless PCCSA.run syntax_tree
 
 # unparser the syntax tree
-unparser = PCUnparser.new
-puts unparser.unparse syntax_tree
+if options[:ccode]
+	unparser = PCUnparser.new
+	puts unparser.unparse syntax_tree
+	exit
+end
+
+# rewrite c ast to llvm ast
+llvm_ast = PCLLVM.run syntax_tree
+
+# print syntax tree of llvm code
+if options[:llvm]
+	llvm_ast.prettyprint STDOUT
+	puts
+	exit
+end
+
+llvm_unparser = LLVMUnparser.new
+puts llvm_unparser.unparse llvm_ast
 
 ########################## my code end ##################################
 
