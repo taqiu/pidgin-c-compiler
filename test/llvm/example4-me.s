@@ -4,13 +4,13 @@ define i32 @foo() {
    %a = alloca [9 x [7 x i32]]
    %x = alloca [2 x i32]
    call void @bar(i32 9)
-   %temp1 = load double* %b
-   %temp2 = load double* %c
-   %temp3 = fadd double %temp1, %temp2
-   %temp4 = getelementptr inbounds [9 x [7 x i32]]* %a, i32 0, i32 0
-   %temp5 = getelementptr inbounds [2 x i32]* %x, i32 0, i32 0
-   %temp6 = call double @buz(double %temp3, i32 4, [7 x i32]* %temp4, i32* %temp5)
-   store double %temp6, double* %b
+   %temp0 = load double* %b
+   %temp1 = load double* %c
+   %temp2 = fadd double %temp0, %temp1
+   %temp3 = getelementptr inbounds [9 x [7 x i32]]* %a, i32 0, i32 0
+   %temp4 = getelementptr inbounds [2 x i32]* %x, i32 0, i32 0
+   %temp5 = call double @buz(double %temp2, i32 4, [7 x i32]* %temp3, i32* %temp4)
+   store double %temp5, double* %b
    ret i32 0
 }
 

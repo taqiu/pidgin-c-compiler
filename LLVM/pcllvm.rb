@@ -9,15 +9,36 @@
 #
 ###########################################
 #
-#  Last modify: 04/02/2013
+#  Last modify: 04/06/2013
 #  
-#  Unfinished work:
-#  - assignment type casting 
-#  - function call type casting 
+#  Todo list:
+#  - array and pointer casting 
+#    e.g.
+#  	int a[6];
+#  	int *p;
+#  	int foo(int *x);
+#  	p = a;
+#  	p = &a[3];
+#  	foo(a);
+#	p[0];
+#  	
 #  - char and string is not supported yet because of the inherent problem in the scanner
 #    the compile can't output exetutable llvm assemblly with char or string
+#    e.g.
+#    	char a = 'a';
+#    	char str[90] = "abcd";
+#    	char* pstr = "efgh";
+#	void bar(char x, char* arr);
+#    	printf("Hello world\n");
+#    	bar(a, str);
+#
 #  - compound statements
-#  - camparsion statements
+#    e.g.
+#	if...else.../while.../for... 
+#
+#  - camparsion statements and boolean expression
+#    e.g.
+#  	"<=", ">=", "==", "<", ">", "!"
 #
 
 
@@ -25,7 +46,7 @@ class PCLLVM
 	include RubyWrite
 	
 	def initialize
-		@lenv = LEnv.new nil
+		@llvm_env = LEnv.new nil
 	end
 
 	def main (node)
@@ -62,13 +83,13 @@ class PCLLVM
 			global_vars	
 		end
 		rewrite :FunctionDecl[:id, :Formals[:params]] do |node|
-			@lenv.extend_env lookup(:id), [@type_name, lookup(:params).map{|x| trav_formals x}]	
+			@llvm_env.extend_env lookup(:id), [@type_name, lookup(:params).map{|x| trav_formals x}]	
 			# return nothing for function declaration
 			nil	
 		end
 		rewrite :ArrayRef[:id, :sub] do |node|
 			subs = lookup(:sub).map{|x| trav_global_vars x}
-			@lenv.extend_env lookup(:id), [@type_name, subs]
+			@llvm_env.extend_env lookup(:id), [@type_name, subs]
 			array_type = to_array_type [@type_name, subs] 
 			build :GlobalVar["@"+lookup(:id), :ArrayRef[array_type]]
 		end
@@ -83,7 +104,7 @@ class PCLLVM
 			val
 		end
 		default do |node|
-			@lenv.extend_env node, @type_name
+			@llvm_env.extend_env node, @type_name
 			build :GlobalVar["@"+node , @type_name]
 		end
 	end
@@ -155,8 +176,8 @@ class PCLLVM
 
 	define_rw_rewriter :trav_functions do
 		rewrite :Function[:rtype, :id, :Formals[:formals], :block] do
-			@temp_count = 1 
-			@lenv = LEnv.new @lenv
+			@temp_count = 0 
+			@llvm_env = LEnv.new @llvm_env
 			type_name = lookup(:rtype)
                         if type_name == "int"
                                 rtype = "i32"
@@ -171,13 +192,13 @@ class PCLLVM
 			formals = lookup(:formals).map {|x| extend_params x}		
 			block = trav_functions lookup(:block)
 			# recover environment
-			@lenv = @lenv.get_out_env
+			@llvm_env = @llvm_env.get_out_env
 			build :Function[rtype, "@"+lookup(:id), formals, block ]
 		end 
 		rewrite :Block[[:type_decls, :stmts]] do |node|
 			stmts = []
 			# Add formal parameter declarations
-			@lenv.get_all.each { |key, value|
+			@llvm_env.get_all.each { |key, value|
 				if value.kind_of?(Array)
 					type = to_array_ptr(value)
 				else
@@ -186,11 +207,11 @@ class PCLLVM
 				stmts += [build :Alloca["%"+key+".addr", type]]
 				stmts += [build :Store[type, "%"+key, type+"*", "%"+key+".addr"]]
 			}
-			@lenv = LEnv.new @lenv	
+			@llvm_env = LEnv.new @llvm_env	
 			lookup(:type_decls).each {|x| stmts += trav_local_decl x }
 			lookup(:stmts).each {|x| stmts += trav_stmts x}
 			# recover environment
-			@lenv = @lenv.get_out_env
+			@llvm_env = @llvm_env.get_out_env
 			stmts
 		end
 	end
@@ -214,7 +235,7 @@ class PCLLVM
 		end
 		rewrite :ArrayRef[:id, :sub] do |node|
 			subs = lookup(:sub).map{|x| trav_local_decl x}
-			@lenv.extend_env lookup(:id), [@type_name, subs]
+			@llvm_env.extend_env lookup(:id), [@type_name, subs]
 			array_type = to_array_type [@type_name, subs] 
 			build :Alloca["%"+lookup(:id), array_type]
 		end
@@ -229,7 +250,7 @@ class PCLLVM
 			val
 		end
 		default do |node|
-			@lenv.extend_env node, @type_name
+			@llvm_env.extend_env node, @type_name
 			build :Alloca["%"+node, @type_name]
 		end
 	end
@@ -245,14 +266,14 @@ class PCLLVM
 		end
 		rewrite :ArrayArg[:id, :subs] do |node|
 			type = [@formal_type, lookup(:subs).map{|x| extend_params x}]
-			@lenv.extend_env lookup(:id), type
+			@llvm_env.extend_env lookup(:id), type
 			build :Formal[to_array_ptr(type), "%" + lookup(:id)]
 		end
 		rewrite :ConstInt[:val] do |node|
                         lookup(:val)
                 end
 		default do |node|
-			@lenv.extend_env node, @formal_type
+			@llvm_env.extend_env node, @formal_type
 			build :Formal[@formal_type, "%" + node]
 		end
 	end
@@ -264,10 +285,11 @@ class PCLLVM
 		end
 		rewrite :Assignment[:id, :expr] do |node|
 			stmts = []
-			varr, typer = trav_expr lookup(:expr)
-			varl, typel = trav_assign_lhs lookup(:id)
+			var_rhs, type_rhs = trav_expr lookup(:expr)
+			var_lhs, type_lhs = trav_assign_lhs lookup(:id)
+			var = assignment_casting(type_lhs, type_rhs, var_rhs)
 			stmts +=  @expr_stmts
-			stmts += [build :Store[typel, varr, typel+"*", varl]]
+			stmts += [build :Store[type_lhs, var, type_lhs+"*", var_lhs]]
 			stmts
 		end
 		rewrite :ReturnStmt[:expr] do |node|
@@ -281,8 +303,18 @@ class PCLLVM
 		end
 	end
 
-	define_rw_rewriter :trav_assign_lhs do 
-		rewrite :ArrayRef[:id, :subs] do |node|
+	def assignment_casting(lhs_type, rhs_type, rhs_id )
+		if lhs_type == "double" and  rhs_type == "i32"
+			conv = get_temp_var
+			@expr_stmts += [build :Conv[conv, "sitofp i32 "+ rhs_id  + " to double"]]
+			conv
+		else
+			rhs_id
+			#raise "incorrect casting: #{rhs_type} ->  #{lhs_type} "
+		end
+	end
+
+	def get_array_pointer()
 			val, type = trav_expr lookup(:id)
 	
 			if val[0,1] == "@"
@@ -332,6 +364,11 @@ class PCLLVM
 				}
 				[var, type[0]]
 			end
+	end
+
+	define_rw_rewriter :trav_assign_lhs do 
+		rewrite :ArrayRef[:id, :subs] do |node|
+			get_array_pointer 
 		end
 		rewrite :Pointer[:val] do |node|
 			val, type = trav_assign_lhs lookup(:val)
@@ -340,7 +377,7 @@ class PCLLVM
 			[var, type[0..-2]]
 		end
 		default do |node|
-			type, layer = @lenv.apply_env node
+			type, layer = @llvm_env.apply_env node
 			if layer == 0
 				var = "@"+node
 			elsif layer == 1
@@ -360,62 +397,10 @@ class PCLLVM
 			[lookup(:val), "double"]
 		end
 		rewrite :ArrayRef[:id, :subs] do |node|
-			val, type = trav_expr lookup(:id)
-	
-			if val[0,1] == "@"
-				var = get_temp_var
-				atype = to_array_type type
-				subs = lookup(:subs).map{|x|
-					idx, idx_type = trav_expr x
-					"i32 "+ idx
-				}
-				@expr_stmts += [build :GEP[var, atype+"*", val, ["i32 0"] + subs]]
-				var1 = get_temp_var
-				@expr_stmts += [build :Load[var1, type[0]+"*", var]]
-				[var1, type[0]]
-			elsif val[-5, 5] == ".addr"
-				var = get_temp_var 
-				atype = to_array_ptr type
-				@expr_stmts += [build :Load[var, atype+"*", val]]
-				count = 0
-				var1 = ""
-				last_var = ""
-				lookup(:subs).each { |x|
-					var1 = get_temp_var
-					idx, idx_type = trav_expr x
-					if count == 0
-						atype = to_array_ptr type
-						@expr_stmts += [build :GEP[var1, atype, var, ["i32 "+idx]]]	
-					else
-						atype = to_array_type [type[0], type[1][count..-1]]
-						@expr_stmts += [build :GEP[var1, atype+"*", last_var, ["i32 0", "i32 "+idx]]]
-					end
-					last_var = var1
-					count += 1
-				}
-
-				var2 = get_temp_var
-				@expr_stmts += [build :Load[var2, type[0]+"*", var1]]
-				[var2, type[0]]
-			else
-				count = 0
-				var = ""
-				lookup(:subs).each { |x|
-					idx, idx_type = trav_expr x
-					atype = to_array_type [type[0], type[1][count..-1]]
-					if count == 0
-						last_var = val 
-					else
-						last_var = var
-					end
-					var = get_temp_var
-					@expr_stmts += [build :GEP[var, atype+"*",  last_var ,["i32 0","i32 "+idx]]]
-					count += 1
-				}
-				var1 = get_temp_var
-				@expr_stmts += [build :Load[var1, type[0]+"*", var]]
-				[var1, type[0]]
-			end
+			var, type = get_array_pointer
+			var1 = get_temp_var
+			@expr_stmts += [build :Load[var1, type+"*", var]]
+			[var1, type]
 		end
 		rewrite :Pointer[:val] do |node|
 			val, type = trav_expr lookup(:val)
@@ -428,7 +413,7 @@ class PCLLVM
 			val = lookup(:val)
 			case op
 			when "&"
-				type, layer = @lenv.apply_env val
+				type, layer = @llvm_env.apply_env val
 				if layer == 0
 					["@"+val, type+"*"]	
 				elsif layer == 1
@@ -490,28 +475,33 @@ class PCLLVM
 		end
 		rewrite :FunctionCall[:id, :params] do |node|
 			id = lookup(:id)
-			params = lookup(:params).map { |x|
-				var, type = trav_expr x
+			ftype, layer = @llvm_env.apply_env id
+			ptype = ftype[1]	
+			fparams = lookup(:params)
+			params = []
+			fparams.size.times { |i|
+				var, type = trav_expr fparams[i]
+				var = assignment_casting(ptype[i] , type, var)
 				if type.kind_of?(Array)
 					var1 = get_temp_var
 					@expr_stmts += [build :GEP[var1, to_array_type(type)+"*" , var, ["i32 0", "i32 0"]]]
-					to_array_ptr(type) + " " + var1
+					params += [to_array_ptr(type) + " " + var1]
 				else
-					type + " " + var
+					params += [ptype[i] + " " + var]
 				end
 			}
-			rtype, layer = @lenv.apply_env id
+			rtype, layer = @llvm_env.apply_env id
 			if rtype[0] == "void"
 				@expr_stmts += [build :VoidCall["@"+id, params]]
 				[]
 			else
 				var = get_temp_var
 				@expr_stmts += [build :Call[var, rtype[0],"@"+id, params]]
-				[var, rtype]
+				[var, rtype[0]]
 			end
 		end
 		default do |node|
-			type, layer = @lenv.apply_env node
+			type, layer = @llvm_env.apply_env node
 	
 			if layer == 0
 				if not type.kind_of?(Array)
