@@ -1,0 +1,2 @@
+# how to run
+ruby pcc.rb -a < test/project/example2.c > ouput

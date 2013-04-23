@@ -122,6 +122,11 @@ class PCUnparser
 				  body),
 				"}")
 			end
+			rule :OpenmpFor do |forloop|
+				v( {}, "#pragma omp parallel for",
+				  forloop
+				)
+			end
 		end
 
 		box = boxer.unparse_node node

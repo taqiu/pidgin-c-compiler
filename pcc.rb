@@ -10,6 +10,7 @@ require 'PCUnparse/pcunparser'
 require 'CSA/pccsa'
 require 'LLVM/pcllvm'
 require 'LLVM/llvmunparser'
+require 'Project/auto_parallel'
 require 'optparse'
 
 # This class includes RubyWrite as a module.  So, the class can use RubyWrite
@@ -82,6 +83,7 @@ OptionParser.new do |opts|
 	options[:parse] = false
 	options[:ccode] = false
 	options[:llvm]  = false
+	options[:autoparallel] = false
 
 	opts.on("-p", "--[no-]parse", "Display a parse tree") do |v|
 		options[:parse] = v
@@ -91,6 +93,9 @@ OptionParser.new do |opts|
 	end
 	opts.on("-l", "--[no-]llvm", "Display the AST of llvm") do |v|
 		options[:llvm] = v
+	end
+	opts.on("-a", "--[no-]autoparallel", "Output auto parallel OpenMP code") do |v|
+		options[:autoparallel] = v
 	end
 end.parse!
 
@@ -128,6 +133,16 @@ exit unless PCCSA.run syntax_tree
 if options[:ccode]
 	unparser = PCUnparser.new
 	puts unparser.unparse syntax_tree
+	exit
+end
+
+# oupt the auto paralell OpenMP code
+if options[:autoparallel]
+	past = AutoParallel.run syntax_tree
+	#past.prettyprint STDOUT
+	#puts
+	unparser = PCUnparser.new
+	puts unparser.unparse past
 	exit
 end
 
